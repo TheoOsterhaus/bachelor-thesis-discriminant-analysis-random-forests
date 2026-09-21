@@ -1,0 +1,1001 @@
+\documentclass[12pt,a4paper,titlepage]{article}
+\usepackage[utf8]{inputenc}
+\newcommand\independent{\protect\mathpalette{\protect\independenT}{\perp}}
+\def\independenT#1#2{\mathrel{\rlap{$#1#2$}\mkern2mu{#1#2}}}
+\usepackage[a4paper,left=3cm,right=2cm,top=2cm,bottom=2cm,bindingoffset=5mm]{geometry}
+\usepackage[onehalfspacing]{setspace}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel} 
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+\usepackage{physics}
+\usepackage{xurl}	
+\usepackage[plainpages=false,hidelinks]{hyperref}
+\usepackage{varioref}
+\usepackage{cleveref}
+\usepackage{tabularx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[verbose]{placeins}
+\usepackage{array}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{blkarray}
+\usepackage{dsfont}
+\usepackage{amsthm}
+\usepackage{dirtytalk}
+\usepackage{appendix}
+\usepackage{bm}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{mwe}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{csquotes}
+\usepackage{emptypage}
+\usepackage{standalone}
+\usepackage{import}
+\numberwithin{equation}{section}
+\numberwithin{table}{section}
+\numberwithin{figure}{section}
+
+
+\makeatletter
+\def\tagform@#1{\maketag@@@{\ignorespaces#1\unskip\@@italiccorr}}
+\let\orgtheequation\theequation
+\def\theequation{(\orgtheequation)}
+\makeatother
+\let\orgautoref\autoref
+\providecommand{\Autoref}[1]{\def\equationautorefname{Equation}\orgautoref{#1}}
+\renewcommand{\autoref}[1]{\def\equationautorefname{Eq.}\orgautoref{#1}}
+
+\linespread{1.5}
+
+\usepackage[backend=biber, style=authoryear, sorting=nty]{biblatex}
+\addbibresource{00References.bib}
+\setcounter{tocdepth}{2}
+
+
+
+
+\title{comparison of discriminant analysis and Random Forests in Classification}
+\author{Theo Karl Osterhaus }
+\date{\today}
+\begin{document}
+\begin{titlepage}
+		\begin{center}
+		\par
+		\vspace*{2cm}
+		{\LARGE \textsc{comparison of discriminant analysis and random forests in classification}}
+		\par
+		\vspace{4.5cm}
+		\par
+		{\textsc{Bachelor's thesis presented to the}}\\
+		{\textsc{Department of Economics at the}}\\
+		{\textsc{Rheinische Friedrich-Wilhelms-Universität Bonn}}\\
+            \vspace*{1cm}
+		{\textsc{In partial fulfilment of the requirements for  the degree of}}
+            {\textsc{Bachelor of Science (B.Sc.)}}
+		\par
+		\vspace{5.25cm}
+		{\textsc{Supervisor:} Prof. Dr. Joachim Freyberger}\\
+		\vspace{0.5cm}
+		\par
+		%\vfill
+		\vspace{1cm}
+		{\textsc{Submitted in June 2025 by} \\ Theo Karl Wladislav Osterhaus \\ Matriculation Number: 3340595}\\
+		%\vspace{2cm}
+		\end{center}
+\end{titlepage}
+	
+\thispagestyle{empty}
+
+\pagenumbering{roman}
+\newpage
+\tableofcontents
+\newpage
+\listoffigures
+\addcontentsline{toc}{section}{List of Figures}
+\newpage
+\listoftables
+\addcontentsline{toc}{section}{List of Tables}
+
+\newpage
+\cleardoublepage
+
+\pagenumbering{arabic}
+\newpage
+\section{Introduction}\label{Introduction}
+Classification is omnipresent in modern society. Examples of its applications include:
+From deciding whether to grant a credit card to detecting spam or diagnosing and preventing medical conditions, it is something that everyone should be familiar with.
+
+The escalating global prevalence of diabetes mellitus (\ref{app:diabetes}) poses a significant public health challenge, requiring effective strategies to identify at-risk individuals early on. Early detection enables timely intervention, thereby improving patient outcomes and reducing healthcare burdens.
+
+\noindent This thesis aims to address a fundamental challenge in statistical research: the inherent difficulty of selecting the most suitable approach for a given empirical problem. This challenge is underpinned by the principle, famously articulated by \cite{noffreelunch}, that 'There is no free lunch in statistical learning'.
+
+\noindent We compare the performance of two prominent and fundamentally distinct approaches to classification: Discriminant Analysis (Linear Discriminant Analysis (LDA \ref{LDA}) and Quadratic Discriminant Analysis (QDA \ref{QDA})) and Random Forests (\ref{RandomForest}).
+Our objective is to identify a suitable model capable of accurately predicting an individual's diabetes status based on readily available physiological and demographic data, while setting an appropriate threshold.
+
+\noindent To achieve this, the thesis is structured as follows: First, we introduce the theoretical foundations of these classification models, including the concepts of Model Accuracy (Chapter \ref{Model Accuracy}), the Bias-Variance Trade-Off (Chapter \ref{biasvariancetradeoff}), and the optimal Bayes Classifier (Chapter \ref{Bayes Classifier}). Subsequently, we employ a series of three artificial datasets (Chapter \ref{Artificial Data}) to systematically evaluate the models' inherent strengths and weaknesses under controlled conditions (Chapters \ref{Model},  \ref{Discussion}). This controlled environment allows for a clear understanding of how each model performs when assumptions are met or violated.
+Finally, we apply the models to a real-world dataset (Chapter \ref{Empirical Application}), the PimaIndiansDiabetes2 dataset, which contains Diabetes test results collected by the US National Institute of \cite{pima}.
+
+\section{Artificial Data}\label{Artificial Data}
+This chapter describes the generation of artificial datasets designed to assess the performance of classification models under controlled conditions. To achieve this, each dataset embodies specific assumptions that largely align with those of one of the three later evaluated models. A comprehensive understanding of the behaviour of different models when confronted with ideal datasets and datasets that do not align with their assumptions is imperative for the judicious selection of models for real-world applications.
+    
+    \subsection{Requirements for the Datasets}\label{Requirements for the datasets}
+    The fundamental problem in classification and regression problems is that we cannot possibly know the exact form of the true function $f$. If $f$ were known, employing approximation models would be redundant.
+    Therefore, in order to compute benchmark parameters precisely, such as the test error rate, and to evaluate the performance of various models under controlled conditions, it is often more advantageous to use artificial datasets. In such datasets, the true form of $f, \mu, \sigma$ and other subsequent approximate parameters are known by definition. This inherent knowledge enables a direct and unbiased measurement of how well a model works and how it responds to specific data structures.
+    
+    \subsection{Dataset 01 and Dataset 02}\label{Dataset 0102}
+    The computed datasets 01 and 02 are both based on a multivariate Gaussian distribution
+    \begin{align}
+    X_k \sim \mathcal{N} (\mu, \Sigma) & \text{ ,where }\Sigma_A = \Sigma_B = \Sigma_{01}&\text{, for dataset 01}, \\
+    X_k \sim \mathcal{N} (\mu, \Sigma_k) & \text{ ,where }\Sigma_A \neq \Sigma_B & \text{, for dataset 02},
+    \end{align}
+    with equal mean vectors for class A ($\mu_{A01}=\mu_{A02}$) and class B ($\mu_{B01}=\mu_{B02}$). Matrices \ref{m:covmatrices} show that the difference between dataset 01 and dataset 02 is that dataset 01 has equal covariance matrices $\Sigma_{01}$ for all classes $k$, and dataset 02 has class-specific covariance matrices.
+    \begin{align}\label{m:covmatrices}
+    \Sigma_{01} &= \begin{pmatrix}
+        0.5 & 0 \\
+        0   & 0.5
+    \end{pmatrix}, &
+    \Sigma_{02A} &= \begin{pmatrix}
+        1 & 0.8 \\
+        0.8 & 1
+    \end{pmatrix} &
+    \Sigma_{02B} &= \begin{pmatrix}
+        1 & -0.5 \\
+        -0.5 & 1
+    \end{pmatrix}
+    \end{align}
+    
+    By drawing $n = 500$ observations with an even ($\pi_A = \pi_B = 0.5$) prior distribution, each dataset contains 250 observations of class $A$ and class $B$, (\ref{app:Generating Datasets}). Every observation point represents a combination of $V1$ and $V2$, resulting in two density clouds around the class-specific means.
+    
+    \begin{figure}
+    \label{fig:scatter0102}
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{scatter01.pdf}
+        \caption{Dataset 01}
+        \label{fig:dataset01}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{scatter02.pdf}
+        \caption{Dataset 02}
+        \label{fig:dataset02}
+    \end{subfigure}
+    \caption{Scatterplot of the Training Datasets}
+    \end{figure}
+    
+    \noindent In Figure \ref{fig:dataset01}, the two classes of dataset 01 overlap, due to close means and moderate identical variance. Both class-specific distribution clouds appear quite identical, a reasonable observation given the shared covariance matrix \ref{m:covmatrices}. Specifically, since the variances of the individual features are equal and there is no correlation between $V1$ and $V2$. The data points for each class form a roughly circular cluster around their respective mean.
+    
+    \noindent Figure \ref{fig:dataset02} displays that the distribution clouds of dataset 02 are more stretched.
+    For class A, the positive covariance of 0.8 leads to a tendency for $V2$ to increase as $V1$ increases. This results in an elliptical cloud of points tilted upwards to the right. Conversely, for class B, the negative covariance of 0.5 indicates that as $V1$ increases, $V2$ tends to decrease, which results in an elliptical cloud of points tilted downwards to the right.
+    
+    \noindent We can already see that dataset 01 fulfils the assumptions underlying LDA, and Dataset 02 fulfils those underlying QDA.
+    
+    \subsection{Dataset 03}\label{Dataset 03}
+    Dataset 03 represents a distinct scenario where classes are separated by piecewise linear decision boundaries derived from uniformly sampled data points within predefined, non-overlapping rectangular regions of a multivariate distribution. Especially, each class occupies two distinct rectangular subregions:
+    \begin{itemize}
+        \item Class A is defied by $V1\in[-2, -1]$ and $V2\in[-2, 2]$ for the first subregion, and $V1\in [-1, 1]$ and $V2\in [1, 2]$ for its second subregion.
+        \item Class B is defied by $V1\in[-1, 2]$ and $V2\in[-2, 1]$ for the first subregion, and $V1\in [1, 2]$ and $V2\in [1, 2]$ for its second subregion.
+    \end{itemize}
+    A uniform distribution, $ X \sim \mathcal{U}(a,b) $ is used to draw values of $V_1$ and $V_2$ for each of these subregions, resulting in figure \ref{fig:Dataset 03}. Containing $n=500$ observations equally split ($\pi_A=\pi_B=0.5$) (More detailed in \ref{app:Generating Datasets}).
+
+    \begin{figure}
+    \centering 
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{scatter01.pdf} 
+        \caption{Dataset 01}
+        \label{fig:Dataset 01}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{scatter02.pdf}
+        \caption{Dataset 02}
+        \label{fig:Dataset 02}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{scatter03.pdf}
+        \caption{Dataset 03}
+        \label{fig:Dataset 03}
+    \end{subfigure}
+    \caption{Scatterplots of the different Datasets}
+    \label{fig:scatterplotdatasets}
+    \end{figure}
+    
+    \noindent The two classes are distributed in specific non-overlapping rectangular regions, resulting in nonlinear separability. This complex pairwise linear decision boundary could be easily learns by a Tree-Based classification method, like Random Forests(Chapter \ref{RandomForest}).
+
+    \subsection{Overview and Limited Complexity}
+    Every new draw of data, denoted as $(X_{0i},Y_{0i})$ is drawn independently and identically distributed (i.i.d.)
+    \begin{equation*}
+    (X_{0i},Y_{0i})\overset{\text{i.i.d.}}{\sim}(X,Y),\quad i=1,\dots,m.
+    \end{equation*}
+    Figure \ref{fig:scatterplotdatasets} shows the scatterplots of Dataset 01, Dataset 02, and Dataset 03 illustrating how different data structures influence the optimal classification strategy. All three artificial datasets are idealised; there are no harmful outliers, missing values, or noise in the data.
+
+\section{Classification Models}\label{Model}
+Classification models categorise data into predefined classes and can be used for inference and prediction. For example, it can identify which features are most important in distinguishing between classes, or determine the precision of the class of a new, unseen data point.
+
+\noindent The overarching task is to find a function $\hat{f}$, so that $Y \approx \hat{f}(X)$, for every observed or new realisation of $(X,Y)$. Thus, $f$ can be infinite complex; it is crucial to decide which method produces the best results for any given set of data. This decision can be made based on model accuracy or different classification metrics (Chapter \ref{Classification metrics}).
+Selecting the best approach can be one of the most challenging aspects of statistical learning in practice.
+
+    \subsection{Model Accuracy}\label{Model Accuracy}
+    For a given training dataset, $\{(x_1,y_1),(x_2,y_2), ..., (x_n,y_n)\}$, where $x_i$ is a predictor vector and $y_i$ is its qualitative response, we can train different classifier $\hat{f}$. Each such classifier takes the predictor vector $x_i$ as an input to predict $\hat{f}(x)=\hat{y}(x_i)$ as an estimate of the true class.
+    
+    \noindent We use the error rate to measure the performance of a classification model. Classification tasks aim to minimise the error rate, which is the percentage of false predictions made by the model.
+
+    \noindent Thus, we cannot use the MSE (\ref{app:MSE}), like in regression problems, we can define an Indicator Function that returns $1$ if the class is predicted incorrectly ($I(incorrect)=1$) and $0$ if it is correct ($I(correct)=0$). The mean of this Indicator Function across all predictions is precisely what we refer to as the error rate. Conversely, the accuracy of the model is defined as
+    \begin{equation}\label{eq:accuracy}
+    \text{accuracy} = 1 - \text{error rate}.
+    \end{equation}
+    \noindent The training error rate is defined as,
+    \begin{equation}
+    \label{eg:trainingerror}
+    1/n \sum_{i=1}^n I(y_i \neq \hat{y}_i)
+    \end{equation}
+    
+    \noindent and gives us the percentage of false predictions we obtain if we apply a method to the data itself. But we want to measure models on their performance on new, unseen data. Consequently, we use the test error rate
+    \begin{equation}
+    \label{eq:testerror}
+    1/m \sum_{i=1}^m I(y_{0i} \neq \hat{y}_{0i}),
+    \end{equation}
+    
+    \noindent which quantifies the difference in the prediction of $y_i$ by applying the classifier $\hat{f}(x)$ to new unseen non-overlapping data $\{(y_{01},x_{01}), (y_{02},x_{02}),\dots, (y_{0m},x_{0m})\}$ with $x_n \cup x_{0m}$.
+
+    A good classifier minimises the test error rate \ref{eq:testerror}. However, models will make mistakes, which can be broken down into bias and variance. Therefore, a statistical method must have low bias and low variance simultaneously. Unlike regression, the precise decomposition of the error rate in classification problems with binary outputs is more complex.
+    
+    \subsubsection{Bias-Variance Trade-Off}\label{biasvariancetradeoff}
+    Any time we use statistical methods for the computation of an estimated $f$, the given datasets and made-up assumptions impose limitations. The Bias-Variance Trade-Off refers to this problem.
+    The total expected error rate \ref{eq:testerror}, of a classification can be conceptually decomposed into three main components
+        \begin{itemize}
+            \item\label{Bias} \textbf{Bias} can be defined as the discrepancy between the modelled decision boundary and the actual boundary of the problem under consideration. Real-world problems are truly nonlinear $f$, so by performing a model based on a linear assumption, large errors are introduced due to this assumption. Even if the model were trained on an infinite amount of data, it would still be unable to accurately capture the true relationship and would therefore make systematic errors.
+            \item\label{Variance} \textbf{Variance} is  defined as the amount by which $\hat{f}$ changes when a different dataset is used for training. The model learns the training data too accurately, including the noise and specific characteristics of the respective training dataset, resulting in an overfitted model. In an ideal scenario, all the computed $\hat{f}$ values would be relatively close to each other.
+            \item\label{Irreducible Error (Bayes Error Rate)} \textbf{Irreducible Error (Bayes Error Rate)} is the minimum possible error rate that cannot be reduced by any model, regardless of its complexity or the amount of training data.
+        \end{itemize}
+         'There is an inherent trade-off between bias and variance in statistical learning', \cite[p.33]{ISLR}. Simpler models tend to be more stable and consistent, resulting in maladjustment (High bias, low variance). More complex models tend to be more precise but vary highly in small changes in the training data (Low bias, high variance).
+        The goal of a statistician is to find the sweet spot where the value of interaction between bias and variance is minimised, as shown in figure \ref{fig:biasvariance}. This leads to the best generalisation performance on unseen data.
+        
+        \begin{figure}[h]
+        \centering
+        \begin{subfigure}[b]{0.45\textwidth}
+            \centering
+            \includegraphics[width=\textwidth]{biasvariance.pdf}
+            \caption{Bias-Variance Trade-Off}
+            \label{fig:biasvariance}
+        \end{subfigure}
+        \hfill
+        \begin{subfigure}[b]{0.45\textwidth}
+            \centering 
+            \includegraphics[width=\textwidth]{randomnessoff.pdf}
+            \caption{Randomness $\hat{f}$}
+            \label{fig:Randomness of the training error data 01}
+        \end{subfigure}
+        \caption{Bias-Variance Trade-off and the Randomness of $\hat{f}$}
+        \end{figure}
+        
+        \noindent However, figure \ref{fig:Randomness of the training error data 01} shows that $\hat{f}$ is based on a random sample consequently $\hat{f}$ itself is random. By using methods such as k-fold cross-validation, we can obtain a more robust and reliable estimate of the test error rate and thereby assess the model's generalisation performance on unseen data (\cite{KNOKE1986253}).
+
+    \subsection{Bayes Classifier}\label{Bayes Classifier}
+    The Bayes classifier minimises the test error rate by assigning a test observation with predictor vector $X=x_0$ to the most probable class $k$, $P(Y=k | X=x_0)$.
+    For a binary problem, the Bayes classifier would assign observations as follows:
+    \begin{equation}
+    Y=\begin{cases}
+    1 & \text{if } P(Y=A| X=x_0) > P(Y=B | X=x_0) \\
+    0 & \text{otherwise}
+    \end{cases}
+    \end{equation}
+    It is evident that the cumulative probability must add up to  $1$. Consequently, the Bayes classifier would allocate observation $X=x_0$ to the class for which the conditional probability exceeds $0.5$. The classification threshold can be set in a variety of ways, depending on the relative cost of different error types.  Nevertheless, it is only possible to attempt to approximate the Bayes classifier, given the unavailability of the true conditional probabilities.  'Consequently, the Bayes classifier is the theoretical paradigm', \cite[p.37]{ISLR}.
+    
+        \subsubsection{Bayes Decision Boundary}\label{Bayes Decision Boundary}
+        We can rearrange the decision rule, resulting in a line referred to as the Bayes decision boundary, which traverses all points on which the corresponding probability of an observation is precisely $0.5$.
+            \begin{equation}
+            \label{eg:bayesdecisionboundary}
+            P(Y = A| X = x_0 ) = 0.5 = P(Y = B| X = x_0 )
+            \end{equation}
+        We will derive and visualise the mathematical formula for the Bayesian decision boundary, in figure \ref{fig:Bayes Decision Boundaries of the datasets}, directly from the parameters of the data generation process.
+
+        \begin{figure}[h]
+        \centering
+        \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{bayes01.pdf}
+        \caption{Dataset 01}
+        \label{fig:bayesDataset 01}
+        \end{subfigure}
+        \hfill
+        \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{bayes02.pdf}
+        \caption{Dataset 02}
+        \label{fig:bayesDataset 02}
+        \end{subfigure}
+        \hfill
+        \begin{subfigure}[b]{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{bayes03.pdf}
+        \caption{Dataset 03}
+        \label{fig:bayesDataset 03}
+        \end{subfigure}
+        \caption{Bayes Decision Boundaries of the Datasets} 
+        \label{fig:Bayes Decision Boundaries of the datasets}
+        \end{figure}
+
+    \noindent Dataset 01 is generated from two multivariate Gaussian distributions that share the same covariance matrix. Therefore, in subplot \ref{fig:bayesDataset 01}, the Bayes decision boundary between the classes is linear. When the covariance matrices differ, the optimal decision boundary becomes quadratic; therefore, the Bayes decision boundary of dataset 02  in subplot \ref{fig:bayesDataset 02} is a curved line, specifically a quadratic boundary. The Bayes decision boundary of dataset 03 in subplot \ref{fig:bayesDataset 03} is composed of multiple straight line segments, as a result of uniformly sampling data points within predefined, non-overlapping rectangular regions for each class.
+        \subsubsection{Bayes Error Rate}
+        A classification based on those decision boundaries achieves the lowest possible test error rate, the Bayes error rate:
+        \begin{equation}
+        1 - E(\max_k Pr(Y=k|X))
+        \end{equation}
+        If the classes are overlapping, the Bayes error rate is always greater than $0$. It is analogous to the irreducible error.
+    
+    \subsection{Discriminant Analysis}\label{DA}
+    It is evident that, with the knowledge we have acquired, finding a model whose test error rate is as close as possible to the Bayes error rate is the right approach. Discriminant analysis (DA) is a statistical method that aims to identify a decision boundary that optimally separates different classes based on their feature values. This boundary is determined by deriving from the following Bayes' theorem:
+    
+    \noindent Bayes' theorem (\cite{sep-bayes-theorem}) states that the posterior probability is given by $p_k = Pr(Y=k|X=x)$, and by applying we can rewrite the class-specific posterior probability
+    \begin{align}
+    \label{eq:bayestheorem}
+        p_k(x)
+        & = Pr(Y=k|X=x) \nonumber\\
+        & = \frac{Pr(Y=k\;\text{ and }\;X=x)}{Pr(X=x)} \nonumber\\
+        & = \frac{Pr(Y=k)\,Pr(X=x|Y=k)}{Pr(X=x)} \nonumber\\
+        & = \frac{\pi_k f_k(x)}{\sum_{l=1}^K\pi_l f_l(x)},
+    \end{align}
+    as a function of the given predictor values $X=x$. The relatively general equation \ref{eq:bayestheorem} is formed from the class-specific prior probabilities $\pi_k$ and an unknown density $f_k(x)$. To emulate the Bayes classifier, it is necessary to estimate these unknown parameters as accurately as possible. A good DA classifier would classify as follows:
+    \begin{equation}
+    Y=\begin{cases}
+    1 & \frac{\pi_A f_A(x)}{\sum_{l=1}^K\pi_l f_l(x)} > \frac{\pi_B f_B(x)}{\sum_{l=1}^K\pi_l f_l(x)} \\
+    0 & \text{otherwise}
+    \end{cases}
+    \end{equation}
+    
+    \noindent Based on given testing data, we can estimate the class-specific prior possibilities $\pi_k$, but estimating the class-specific density $f_k(x)$ is quite challenging. Consequently, assumptions regarding the class-specific distribution must be made. Discriminant Analysis (DA) demonstrates that different assumptions result in different forms of the decision boundary.
+    
+        \subsubsection{Linear Discriminant Analyses | LDA}\label{LDA}
+        The Linear Discriminant Analysis method (LDA) assumes that $f_k(x)$ is Gaussian distributed (\ref{app:gaussian}), and the $(p\times p)$ covariance matrix $\Sigma = Cov(X)$ is equal for all classes $k$. Therefore, we assume that each observation is in the form of $X \sim \mathcal{N}(\mu_k, \Sigma)$.
+        By plugging those assumptions into the posterior probability \ref{eq:bayestheorem}, we get
+        
+        \begin{equation}
+        \label{eq:pkfilled}
+        p_k(x) =\frac{\pi_k \frac{1}{(2\pi)^{p/2}|\Sigma|^{1/2}}\exp\left(-\frac{1}{2}(x-\mu_k)^T\Sigma^{-1}(x-\mu_k)\right)}{\sum_{l=1}^K\pi_l\frac{1}{(2\pi)^{p/2}|\Sigma|^{1/2}}\exp\left(-\frac{1}{2}(x-\mu_l)^T\Sigma^{-1}(x-\mu_l)\right)}.
+        \end{equation}
+    We can rearrange and simplify the equation \ref{eq:pkfilled} and obtain the discriminant function for the LDA method with $p>1$ (\ref{eq:df}). What remains are only linear terms in x.
+        
+        \begin{equation}
+        \label{eq:df}
+        \delta_k(x)=x^T \Sigma^{-1}\mu_k - \frac{1}{2}\mu_k^T \Sigma^{-1}\mu_k + \log(\pi_k)
+        \end{equation}
+
+        \noindent We can now compute estimations based on the given training data to determine the class-specific $\hat\delta_k(x)$. The following estimates are used:
+        \begin{align}
+        \label{eq:estimateslda}
+        \hat\pi_k    & = \frac{n_k}{n}\\
+        \hat\mu_k
+        & = \frac{1}{n_k}\sum_{i=1}^n x_iI(y_i=k)\\
+        \hat{\Sigma}
+        & = \frac{1}{n-pK}\sum_{k=1}^K\sum_{i:y_i=k}(x_i-\hat\mu_k)(x_i-\hat\mu_k)^T \nonumber\\
+        & = \frac{1}{n-pK}\sum_{k=1}^K\sum_{i=1}^n  (x_i-\hat\mu_k)(x_i-\hat\mu_k)^T I(y_i=k)
+        \end{align}
+        And by plugging the estimates used in the Bachelor Compstat course of \cite{compstat} in equation \ref{eq:df}, we can run an algorithm classifying every possible observation $X=x$ to the class for which $\hat\delta_k(x)$ is the largest or compute the LDA Decision boundary, representing each point where $\hat\delta_k(x) = \hat\delta_l(x)$.
+        
+        \begin{align}
+        \hat\delta_k(x)=x^T \Sigma^{-1}\hat\mu_k - \frac{1}{2}\hat\mu_k^T\Sigma^{-1}\hat\mu_k + \ln(\hat\pi_k) \label{eq:dflda} \\
+        \Leftrightarrow x^T \Sigma^{-1}\mu_1 - \frac{1}{2}\mu_A^T\Sigma^{-1}\mu_A + \ln(\pi_A) = x^T \Sigma^{-1}\mu_B - \frac{1}{2}\mu_B^T\Sigma^{-1}\mu_B + \ln(\pi_B) \label{eq:dblda}
+        \end{align}
+        Since $\hat\delta_k(x)$ contains linear terms in x, the resulting LDA decision boundary \ref{eq:dblda} itself is linear.
+        
+        \noindent The true distributions of dataset 01 fulfil the assumptions of LDA; therefore, LDA will probably perform very well, and the linear decision boundary found by LDA will be very close to the true Bayes decision boundary.
+    
+        \subsubsection{Quadratic Discriminant Analysis | QDA}\label{QDA}
+        Unlike LDA, where we assume equal covariance matrices, Quadratic Discriminant Analysis (QDA) assumes that each class has its own, unequal $(p\times p)$ covariance matrix ($\Sigma_k$) and that the observations are drawn from a Gaussian distribution
+        $X \sim \mathcal{N}(\mu_k,\Sigma_k)$.
+        
+        For computing the discriminant function of a QDA classifier, the same steps are taken as in LDA (\ref{LDA}), and the estimators $\hat\pi_k$ and $\hat\mu_k$ stay the same.
+        
+        \noindent But more parameters are required in QDA, specifically ${K}\times p(p-1)/2$ covariance estimates are required, compared to LDA's $1\times p(p-1)/2$. This leads to a more flexible model, due to the utilisation of more information. The posterior probability is given by
+        \begin{equation}
+        \label{eq:qda}
+        p_k(x) =\frac{\pi_k \frac{1}{(2\pi)^{p/2}|\Sigma_k|^{1/2}}\exp\left(-\frac{1}{2}(x-\mu_k)^T\Sigma_k^{-1}(x-\mu_k)\right)}{\sum_{l=1}^K\pi_l \frac{1}{(2\pi)^{p/2}|\Sigma_l|^{1/2}}\exp\left(-\frac{1}{2}(x-\mu_l)^T\Sigma_l^{-1}(x-\mu_l)\right)}
+        \end{equation} and by implementing the estimates $\hat\pi_k$, $\hat\mu_k$ and the estimated class-specific covariance matrices
+        \begin{align}
+        \hat{\Sigma}_k & = \frac{1}{n_k-p}\sum_{i:y_i=k}(x_i-\hat\mu_k)(x_i-\hat\mu_k)^T \nonumber\\
+        & = \frac{1}{n_k-p}\sum_{i=1}^n(x_i-\hat\mu_k)(x_i-\hat\mu_k)^T I(y_i=k),
+        \end{align}
+        
+        \noindent we obtain the discriminant function of a QDA classifier:
+        \begin{align}
+        \label{eq:dfqda}
+        \hat\delta_k(x) &= - \frac{1}{2}\left(x-\mu_k\right)^T\Sigma_k^{-1}\left(x-\mu_k\right)
+        - \frac{1}{2}\log\left(|\Sigma_k|\right)
+        + \log(\pi_k) \nonumber\\
+        &= - \frac{1}{2}x^T \Sigma_k^{-1}x
+        + x^T \Sigma_k^{-1}\mu_k
+        - \frac{1}{2}\mu_k^T\Sigma_k^{-1}\mu_k
+        - \frac{1}{2}\log\left(|\Sigma_k|\right)
+        + \log(\pi_k)
+        \end{align}
+        
+        \noindent Now we can run an algorithm classifying every possible observation $X=x$ to the class for which $\hat\delta_k(x)$ is the largest or compute the QDA Decision boundary, representing each point where $\hat\delta_k(x) = \hat\delta_l(x)$.
+        
+        \noindent The discriminant function $\hat{\delta_k}(x)$ quantity $x$ appears as a quadratic function, which means that the QDA decision boundary is quadratic. Due to the trade-off between bias and variance (Chapter \ref{biasvariancetradeoff}), it has lower bias and higher variance in comparison to the LDA classifier in Chapter \ref{LDA}.
+
+    \subsection{Tree-Based Methods}\label{treebasedmethods}
+    While Discriminant Analysis (LDA and QDA, Chapter \ref{DA}) relies on parametric assumptions about the underlying data distributions and their covariance structures, tree-based methods offer a powerful, non-parametric alternative for classification and regression tasks. A random forest is based on multiple decorrelated decision trees.
+        \subsubsection{Decision Tree}
+        A decision/classification tree is made up of a series of internal nodes (splitting rules) and terminal nodes (leaves). This results in an upside-down tree consisting of branches and leaves, where each leaf $R_k$ represents a class.
+        For growing a classification tree, we use binary splitting. But which criteria is used for making those splits?
+        As in observed classification models like LDA and QDA, we may use the classification error rate. But it turns out that the classification error rate is not sensitive enough for growing classification trees (\cite[p.336]{ISLR}).
+        
+        \noindent Therefore, there are two different but quite identical criteria for the internal binary splitting preferred.
+        The Gini index is defined by,
+        \begin{equation}
+        \label{eq:giniindex}
+        G = \sum_{k=1}^{K} \hat{p}_{mk} (1-\hat{p}_{mk}), 0 \le G \le 1
+        \end{equation}
+        and quantifies the impurity or heterogeneity of a node about the classes of observations it contains (\ref{app:gini}). $\hat{p}_{mk}$ refers to the percentage of training observations in the $m$th region that are from class k.
+        
+        \noindent The entropy is defined by,
+        \begin{equation}
+        \label{eq:entropy}
+        D = -\sum_{k=1}^{K} \hat{p}_{mk} \log\hat{p}_{mk},
+        \end{equation}
+        and also measures the impurity or homogeneity of nodes of a classification tree. The difference is that an algorithm based on the Gini index aims to attain the maximum possible reduction in Gini impurity. And the implementation of an algorithm based on entropy is undertaken to identify the optimal split, which is expected to result in the maximum possible information gain. Both criteria can be used and result in equally good results; however, the Gini index is less computationally intensive.
+
+        \begin{figure}[h]
+        \centering
+            \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{tree02.pdf}
+            \caption{classification tree data02}
+            \label{fig:classification tree dataset 02}
+            \end{subfigure}
+            \hfill
+            \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{prune02.pdf}
+            \caption{pruned classification tree data 02}
+            \label{fig:prunetree02}
+            \end{subfigure}
+        \end{figure}
+        
+        \noindent A classification tree should be used to achieve a split that results in a high information gain. This is the goal when pruning decision trees using cross-validation.
+    
+        \noindent Pruning down the classification tree \ref{fig:classification tree dataset 02} can reduce the Deviance and the mean error rate. But it is not always necessary, for example the classification tree \ref{fig:classification tree dataset 02} has a lower Deviance than the classification tree \ref{fig:prunetree02}.
+        
+        \noindent Decision trees in general have numerous advantages, but one large disadvantage is the large variance and their lack of robustness when applied to different training samples.
+
+        \subsubsection{Random Forests}\label{RandomForest}
+        As we know from Chapter \ref{biasvariancetradeoff}, we cannot have low bias and variance at the same time using only one classification tree. A natural way of lowering the variance is by averaging results obtained from a large number of independent random samples. The mean converges to the true value (\cite{Lawoflargenumber}).
+        Ensemble methods do so by averaging predictions from multiple models trained on different bootstrap samples of the data. We take a deeper look at Random Forests, where the combination of Bootstrapping and aggregation of classification trees leads to a very powerful classification method.
+        By bootstrapping (\ref{app:bootstrapping}) from the given training data $B$ many times, we can model $B$ many regression trees and average the resulting predictions
+        \begin{equation}
+        \label{eq:Btimestree}
+        \hat{f}_{rf} = \frac{1}{B} \sum^B_{b=1} \hat{f}(x).   
+        \end{equation}
+        
+        \noindent The Law of Large Numbers states that the average of stochastic process outcomes converges towards the true expected value, provided that the samples are independent and identically distributed (iid). By bootstrapping over the same training sample, the condition of independence of the samples is not fully met. The resulting trees can still be highly correlated, especially when all predictors are considered as candidates for splitting at each split. 
+        
+        \noindent Random Forests decorrelates the classification trees by building the $B$ decision trees based on a random set of $m \approx \sqrt{p}$ predictors. The resulting decision trees do not use all predictors and have various forms.
+        Hence, Random Forests will not overfit by increasing B, resulting in a larger number of $B$ for lowering the test error rate. They should be used if the data has nonlinear relationships, classes are nonlinearly separable, and covariance matrices are unequal.
+    
+\section{Discussion}\label{Discussion}
+The DA classifiers are fitted via 5-fold cross-validation. Because of that, we obtain a robust and less variable estimate of model performance during the training and optimisation phase.
+After that, based on $n_{sim} = 250$ Monte Carlo simulations (\cite{montecarlo}), we gonna discuss two Models of DA and one Random Forests. A Monte Carlo simulation is based on the repetition of random samples to simulate a ‘real world’ process. By doing so, we can take the means of different Classification metrics because a combination of metrics provides a more comprehensive picture of model performance. The combination of these two steps, cross-validation for training and separate evaluation on unseen test data, is crucial.
+    \subsection{Classification Metrics}\label{Classification metrics}
+    This section will take a deeper look at different classification metrics. The (average) confusion matrix, displayed at (\ref{app:avgconfusion}), contains all four possible classification outcomes a classifier can make: the False Negatives (FN) and the False Positives (FP), which are considered errors. It also contains the number of True Negatives (TN) and True Positives (TP). Based on the information, we can compute different metrics to evaluate the classification models.
+    \begin{enumerate}
+        \item\label{it:errorrates} \textbf{Error rate, Precision and recall:}
+        \begin{align}
+        \text{test error rate} =  \frac{False Negative (FN) + False Positive(FP)}{\text{All Observations  (n) }}\label{testerrorrate1}\\
+        Precision = \frac{True Positive (TP)}{True Positive (TP) + False Positive(FP)}\label{precision} \\
+        Recall= \frac{True Positive (TP)}{True Positive (TP) + False Negative(FN)}\label{recall}
+        \end{align}
+        The equations above give us three different values. The \ref{testerrorrate1} gives us the overall prediction error. Precision \ref{precision} indicates how many of the positive predictions made by the model were correct. High precision means that when the model predicts a positive class, it is highly likely to be correct and produces few false positives. Recall \ref{recall} indicates how many of the actual positive cases were identified by the model. A high recall rate means that the model correctly recognises a large proportion of the relevant positive cases and produces few ‘missed cases’ (FN).
+        The precision and recall scores are later combined into the F1-score.
+        \item \textbf{F1-Score:}
+        \begin{equation}
+        F1 = 2 \times \frac{Precision\times Recall}{Precision + Recall}
+        \end{equation}
+        The F1-score provides a single harmonic mean that balances the trade-off between Precision and Recall.
+        \item \textbf{Receiver Operating Characteristic (ROC) and Area Under the Curve (AUC):}
+        The ROC is a graphic visualising the Recall (TP Rate) against the FP rate across all possible classification thresholds. The ROC curve, with its AUC value, is very useful in understanding performance across different thresholds.
+        \end{enumerate}
+    
+    \subsection{Comparison of DA and Random Forests}
+    In this chapter, we will examine which classification method creates the best results for each dataset.
+        \subsubsection{Dataset 01}
+        We assume that LDA would fit dataset 01 the best, and give us the best classification results.
+        \begin{figure}[h]
+        \label{Error Rates and ROC of Dataset 01}
+        \caption{Error Rates and ROCs of Dataset 01}
+        \centering
+            \begin{subfigure}[b]{0.45\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{boxploterror01.pdf}
+            \caption{error rate dataset 01}
+            \label{fig:boxploterror01}
+            \end{subfigure}
+            \hfill
+            \begin{subfigure}[b]{0.45\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{ROC01.pdf}
+            \caption{ROC dataset 01}
+            \label{fig:ROCdata01}
+            \end{subfigure}
+        \end{figure}
+        Figure \ref{fig:boxploterror01} displays the mean error rate for LDA, QDA, and Random Forests on Dataset 01.
+        All three models exhibit relatively low error rates of less than $0.1$, which is expected given that Dataset 01 is a clean, artificially generated dataset. The mean error rate of $0.0569$ is the lowest for LDA, the rate of QDA, $0.0581$, is higher but quite close. The mean error rate of the Random Forests is higher than the error rates of DA. The IQR-Spread is for all three classification models quite identical.
+
+        The  ROC curves \ref{fig:ROCdata01} for LDA, QDA, and Random Forests are very similar, appearing very close to the top-left corner, reflecting their strong discriminative power and high AUC values.
+    
+        \begin{table}[h]
+            \centering
+            \begin{tabular}{llccc}
+            \toprule
+            \textbf{Metric} & \textbf{Definition} & \textbf{LDA} & \textbf{QDA} & \textbf{RF} \\
+            \midrule
+            Precision   & TP/ TP + FP       & 0.9471 & \textbf{0.9499} & 0.928                      \\
+            Recall    & TP/ TP + FN       & 0.9387 &0.933 & \textbf{0.9398}     \\
+        F1-Score  & $2F1 = 2 \times \frac{Precision\times Recall}{Precision + Recall}$      & \textbf{0.9428} & 0.9414 & 0.9339           \\
+            AUC  & TN/N*      &   \textbf{0.9914} & \textbf{0.9914} & 0.9806                                                 \\
+            \bottomrule
+            \end{tabular}
+            \caption{Definitions and Values of Statistical Metrics; dataset 01}
+            \label{tab:metrics01}
+        \end{table}
+
+        \noindent The two figures \ref{fig:boxploterror01} and \ref{fig:ROCdata01} and the table \ref{tab:metrics01} strongly support the theoretical expectation that LDA and QDA are highly effective on Dataset 01. 
+        LDA proves to be slightly superior in F1-Score, AUC and is very accurate. QDA also performs very well and is marginally better, in terms of precision, than LDA. The additional flexibility of QDA does not result in a significant advantage in this case. Random Forests lags marginally behind the two discriminant analysis methods in all metrics, due to the complexity of building many trees can lead to more variance in the final aggregated prediction, if the problem is too simple to fully benefit from the decorrelation.
+         
+        \noindent All three models - LDA, QDA, and Random Forests – perform excellently on dataset 01. Given that Dataset 01 has a linear Bayes decision boundary (Figure \ref{fig:bayesDataset 01}) and satisfies LDA's assumption of identical covariance matrices, LDA is indeed the theoretically optimal linear classifier.
+        
+        \subsubsection{Dataset 02}
+        Dataset 02 violates the assumption of equal covariance matrices; ergo, we assume that QDA would fit dataset 02 the best and provide the best classification results of the three methods.
+        
+        \begin{figure}[h]
+        \centering
+        \caption{Error Rates and ROCs of Dataset 02}
+            \begin{subfigure}[b]{0.45\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{boxploterror02.pdf}
+            \caption{Error Rate Dataset 02}
+            \label{fig:boxploterror02}
+            \end{subfigure}
+            \hfill
+            \begin{subfigure}[b]{0.45\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{ROC02.pdf}
+            \caption{ROC for Dataset 02}
+            \label{fig:ROCdata02}
+            \end{subfigure}
+        \end{figure}
+
+        \noindent Due to its higher complexity, the average error rates of all models are higher than in dataset 01. Figure \ref{fig:boxploterror02} displays the boxplots of the error rates of each model and confirms the theoretical expectations that QDA has the lowest mean error rate of $0.1156$, and the IQR-spread of the QDA error rates is also relatively low, indicating stable performance. LDA and Random Forests, on the other hand, show a significantly higher mean error rate and also show greater dispersion, indicating less robust performance on dataset 02.
+
+        \noindent The ROC curves \ref{fig:ROCdata02} for LDA and QDA, and Random Forests are are to closely resemble, appearing close to the top-left corner, reflecting their strong discriminative power and high AUC values greater than 0.90. The curve for QDA is closest to the upper left corner and has the highest AUC value of $0.9592$. The ROC curves for Random Forests and LDA follow closely behind with an AUC value of around $0.93$ and $0.92$.
+        
+        \begin{table}[h]
+            \centering
+            \begin{tabular}{llccc}
+            \toprule
+            \textbf{Metric} & \textbf{Definition} & \textbf{LDA} & \textbf{QDA} & \textbf{RF} \\
+            \midrule
+            Precision   & TP/ TP + FP       & \textbf{0.9022} & 0.8995 & 0.8758                      \\
+            Recall    & TP/ TP + FN       & 0.826 & 0.8655 & \textbf{0.8687}     \\
+        F1-Score  & $2F1 = 2 \times \frac{Precision\times Recall}{Precision + Recall}$      & 0.8624 & \textbf{0.8863} & 0.8693           \\
+            AUC  & TN/N*      &   0.9325 & \textbf{0.9592} & 0.9244                                                 \\
+            \bottomrule
+            \end{tabular}
+            \caption{Definitions and Values of Statistical Metrics; dataset 02}
+            \label{tab:metrics02}
+        \end{table}
+        
+        \noindent Figures \ref{fig:boxploterror02} and \ref{fig:ROCdata02} and the table \ref{tab:metrics02} strongly support the theoretical expectation that QDA is highly effective on Dataset 02. QDA proves to be slightly superior, with a higher F1 score and AUC.
+        QDA significantly outperforms LDA since it can learn from unequal covariance matrices and model the quadratic decision boundary that is optimal for Data 02 (Figure \ref{fig:bayesDataset 01}). Random Forests performs as good as LDA in all metrics, due to the complexity of building many trees can lead to more variance in the final aggregated prediction.
+        
+        \subsubsection{Dataset 03}
+        Due to its inherent flexibility and non-parametric nature, the Random Forests classifier is anticipated to achieve the best fit for this complex structure of dataset 03 compared to the more restrictive LDA and QDA models.
+         
+        \begin{figure}[h]
+        \caption{Error Rates and ROCs of dataset 03}
+        \centering
+            \begin{subfigure}[b]{0.45\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{boxploterror03.pdf}
+            \caption{Error Rate of Dataset 03}
+            \label{fig:boxploterror03}
+            \end{subfigure}
+            \hfill
+            \begin{subfigure}[b]{0.45\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{ROC03.pdf}
+            \caption{ROC for Dataset 03}
+            \label{fig:ROCdata03}
+            \end{subfigure}
+        \label{Error rates and ROC of dataset 03}
+        \end{figure}
+        \noindent Figure \ref{fig:boxploterror03} illustrates the theoretical expectations. Random Forests has by far the lowest mean error rate, which is almost zero ($0.0034$), and an extremely low IQR-spread. The very low error rate is only possible because the Bayes error rate of dataset 03 is 0. LDA and QDA have significantly higher mean error rates of around $0.13$, and their error rates are also more widely dispersed than those of Random Forests.
+        
+        \begin{table}[h]
+            \centering
+            \begin{tabular}{llccc}
+            \toprule
+            \textbf{Metric} & \textbf{Definition} & \textbf{LDA} & \textbf{QDA} & \textbf{RF} \\
+            \midrule
+            Precision   & TP/ TP + FP       & 0.8408 & 0.8573 & \textbf{0.9933}                      \\
+            Recall    & TP/ TP + FN       & 0.9188 &0.9253 & \textbf{1}     \\
+        F1-Score  & $2F1 = 2 \times \frac{Precision\times Recall}{Precision + Recall}$      & 0.8781 & 0.89 & \textbf{0.9966}           \\
+            AUC  & TN/N*      &   0.9613 & 0.97 & \textbf{0.9998}                                                \\
+            \bottomrule
+            \end{tabular}
+            \caption{Definitions and Values of Statistical Metrics; dataset 03}
+            \label{tab:metrics03}
+        \end{table}
+        
+        \noindent Figures \ref{fig:boxploterror03}, \ref{fig:ROCdata03}, and the table \ref{tab:metrics03} strongly support the theoretical expectation that Random Forests is highly effective on Dataset 03. For datasets with complex, nonlinear, in particular, piecewise linear decision boundaries (Figure \ref{fig:bayesDataset 03}), Random Forests is the superior approach due to its flexibility and ability to approximate such structures. With its very low bias, it can map the true, complex decision boundary extremely accurately. At the same time, the variance is very low due to the ensemble approach. This leads to outstanding overall performance on this dataset and an almost perfect classification result. 
+
+\section{Empirical Application}\label{Empirical Application}
+In the context of medical diagnosis, particularly when identifying patients at risk of diabetes, not all classification errors are equally costly. A false-negative classification (FN), in which a patient is incorrectly classified as non-diabetic even though they have diabetes, can have serious health consequences. Minimising false negatives is therefore of primary importance, which can be achieved by adjusting the classifying threshold at the end.
+
+\begin{table}[h]
+\centering
+\caption{Classification Metrics on pima}
+\label{tab:metrics_pima}
+    \begin{tabular}{llccc}
+    \toprule
+    \textbf{Metric} & \textbf{Definition} & \textbf{LDA} & \textbf{QDA} & \textbf{RF} \\
+    \midrule
+    error rate             & \ref{eq:testerror}          & 0.2478       & 0.2783       & \textbf{0.187} \\
+    Precision       & $\frac{\text{TP}}{\text{TP} + \text{FP}}$        & 0.7925       & 0.7688       & \textbf{0.8497} \\
+    Recall          & $\frac{\text{TP}}{\text{TP} + \text{FN}}$        & 0.84         & 0.82         & \textbf{0.8667} \\
+    F1-Score        & $2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}$ & 0.8155       & 0.7935       & \textbf{0.8581} \\ 
+    AUC             & Area Under the Curve          & 0.851       & 0.8031 & \textbf{0.8929} \\ 
+    \bottomrule
+    \end{tabular}
+\end{table}
+     
+\noindent The results in \ref{tab:metrics_pima} show that all three models perform reasonably well on the Pima dataset, suggesting that the predictor variables used contain relevant information for predicting diabetes status. However, Random Forests (RF) emerges as the superior classifier, achieving the best performance across all metrics (error rate, precision, recall, and F1-Score).
+
+\noindent With $0.8667$, Random Forests has the highest Recall value, followed by LDA (0.84) and QDA (0.82). This means that RF correctly identifies the largest proportion of patients who are actually diabetic, which is crucial in a clinical context for minimising false negatives (FN). Now we can increase the sensitivity of the model (recall) and thus reduce the rate of false negatives (FN), by adjusting the classification threshold $Pr(\texttt{diabetes}=\texttt{pos}|X=x_i)>0.2$. 
+
+\begin{figure}[h]
+    \centering 
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \caption{conf.matrix RF, default threshold 0.5}
+        \label{fig:conf_ldapima}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{predicted} & \textbf{negative} & \textbf{positive} \\
+            \midrule
+            \textbf{negative} & 130   & 23 \\
+            \textbf{positive} & 20 & 57 \\
+            \bottomrule
+        \end{tabular}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \caption{conf.matrix RF, default threshold 0.5}
+        \label{fig:conf_ldapimaadj}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{predicted} & \textbf{negative} & \textbf{positive} \\
+            \midrule
+            \textbf{negative} & 108   & 8 \\
+            \textbf{positive} & 48 & 72 \\
+            \bottomrule
+        \end{tabular}
+    \end{subfigure}
+    \caption{Comparison of two Confusion Matrices  for Random Forests}
+    \label{fig:two_confusion_matrices}
+\end{figure}
+\noindent Lowering the classification threshold reduced the number of false negative classifications to 8. This corresponds to a false negative rate of $8/80=10.00\%$ for the actual positive class, which represents a significant improvement. But the error rate rises to 0.237\%.
+
+\section{Conclusion}
+This Bachelor's thesis focused on studying different classification models — specifically linear discriminant analysis (LDA \ref{LDA}), quadratic discriminant analysis (QDA \ref{QDA}) and random forests (\ref{RandomForest}) — in a comparative evaluation. I focused on investigating their performance under idealised artificial conditions and realistic conditions using a medical dataset to evaluate their applicability in non-idealised scenarios.
+
+Before analysing the classification models, I created three different datasets in Chapter \ref{Artificial Data}. After understanding the general classification goal, I introduced the inherent benchmark of all classifiers: the Bayes classifier \ref{Bayes Classifier}. Based on the Bayes classifier, I deduced both the DA model and there functionality. To understand the ensemble method, Random Forests, it was crucial to understand the classification tree itself.
+
+My investigations demonstrated the superiority of LDA for linearly separable data (\ref{fig:bayesDataset 01}). QDA performed almost equally good, and Random Forests performed the least well. Conversely, for quadratically separable data, QDA significantly outperformed LDA, while Random Forests effectively approximated nonlinear patterns. Random Forests dominated on dataset 03 due to its flexibility in capturing complex, nonlinear patterns, while LDA and QDA reach their limits. Overall, Random Forests consistently delivered superior or at least comparable classification results on the other artificial datasets as well.
+
+\noindent Though my bachelor's thesis focused on a particular selection of classification algorithms, other advanced ensemble methods or deep learning approaches were not explicitly investigated.
+
+\noindent At a benchmark based on real-life data, the thesis successfully identified Random Forests as the most suitable model for diabetes risk prediction in the empirical application, offering a balanced performance and a high Recall value. A deliberate reduction in the false negative rate may be ethically and practically essential in a clinical setting to avoid serious health consequences for patients classified as false negatives (FN).
+
+In summary, the careful selection and deliberate calibration of classification models are essential for successfully translating predictive analyses into practical applications and thus creating tangible added value, especially in the field of public health.
+
+\printbibliography[heading=bibintoc]
+\newpage
+\pagenumbering{Roman}
+
+\appendix
+\section{Appendix}
+    \subsection{Datasets}
+        \subsubsection{PimaDataImputed}
+        The Data were taken directly from the Pima Indians Diabetes 2 dataset, based on the research of the US National Institute of Diabetes and Digestive and Kidney Diseases, from a population of women who were at least 21 years old, of Pima Indian heritage, and living near Phoenix, Arizona.
+        This Pima dataset is relatively small, with only 768 instances and 8 predictors, and it exhibits class imbalance, as the number of non-diabetics is higher than the number of diabetics. 1 dependent variable. For the present analysis, I cleaned the dataset using the k-nearest neighbour method with k=5 to impute missing values.
+        \$pregnant Number of times pregnant\\
+        \$glucose Plasma glucose concentration (glucose tolerance test)\\
+        \$pressure Diastolic blood pressure (mm Hg)\\
+        \$triceps Triceps skin fold thickness (mm) \\
+        \$insulin 2-Hour serum insulin (mu U/ml) \\
+        \$mass Body mass index (weight in kg/(height in m)\^2) \\
+        \$pedigree Diabetes pedigree function \\
+        \$age Age (years) \\
+        \$diabetes Factor indicating the diabetes test result (neg/pos)
+        \\
+        \begin{figure}[h!]
+        \centering
+        \includegraphics[width=0.5\linewidth]{ROCpima.pdf}
+        \caption{ROC of pima}
+        \label{fig:ROCpima}
+        \end{figure}
+        \\
+        \\
+        \subsubsection{Generating Datasets}\label{app:Generating Datasets}
+        \begin{lstlisting}[ caption=Set parameters for datasets]
+#global set parameters
+n <- 500
+n_per_class <- n / 2
+mu_vec_A <- c(2, 3) # mean class A
+mu_vec_B <- c(3, 5) # mean class B
+#set parameters data 01
+cov_mat <- matrix(c(0.5, 0, 0, 0.5), nrow = 2)
+#set parameters data 02
+cov_matA2 <- matrix(c(1, 0.8, 0.8, 1), nrow = 2) 
+cov_matB2 <- matrix(c(1, -0.5, -0.5, 1), nrow = 2)
+#set parameters data 03
+area_A1 <- (-1 - (-2)) * (2 - (-2)) 
+area_A2 <- (1 - (-1)) * (2 - 1)     
+total_area_A <- area_A1 + area_A2
+# A1: V1 in [-2, -1), V2 in [-2, 2]
+# A2: V1 in [-1, 1), V2 in [1, 2]
+        \end{lstlisting}
+        \\
+        \begin{lstlisting}[ caption=Datagenerating prcess]
+#generating data01
+generate_data01 <- function(n) {
+  data01_A <- mvrnorm(n = n/2, mu = mu_vec_A, Sigma = cov_mat)
+  data01_B <- mvrnorm(n = n/2, mu = mu_vec_B, Sigma = cov_mat)
+  data01 <- rbind(data01_A, data01_B)
+  data01 <- as.data.frame(data01)
+  data01$class <- c(rep("A", n/2), rep("B", n/2))
+  data01  <- data01[sample(1:n),] #shuffle data
+}
+#generating data02
+generate_data02 <- function(n) {
+  data02_A <- mvrnorm(n = n/2, mu = mu_vec_A, Sigma = cov_matA2)
+  data02_B <- mvrnorm(n = n/2, mu = mu_vec_B, Sigma = cov_matB2)
+  data02 <- rbind(data02_A, data02_B)
+  data02 <- as.data.frame(data02)
+  data02$class <- c(rep("A", n/2), rep("B", n/2))
+  data02  <- data02[sample(1:n),] #shuffle data
+}
+#generating data03
+generate_data03 <- function(n_per_class) {
+  n_A1 <- round(n_per_class * (area_A1 / total_area_A))
+  n_A2 <- n_per_class - n_A1
+  
+  # class a (green)
+  data_A1_v1 <- runif(n_A1, min = -2, max = -1)
+  data_A1_v2 <- runif(n_A1, min = -2, max = 2)
+data_A1 <- data.frame(V1 = data_A1_v1, V2 = data_A1_v2, class = "A")
+  
+  data_A2_v1 <- runif(n_A2, min = -1, max = 1)
+  data_A2_v2 <- runif(n_A2, min = 1, max = 2)
+data_A2 <- data.frame(V1 = data_A2_v1, V2 = data_A2_v2, class = "A")
+  
+  data_class_A <- rbind(data_A1, data_A2)
+  
+  area_B1 <- (2 - (-1)) * (1 - (-2)) # 3 * 3 = 9
+  area_B2 <- (2 - 1) * (2 - 1)       # 1 * 1 = 1
+  total_area_B <- area_B1 + area_B2
+  
+n_B1 <- round(n_per_class * (area_B1 / total_area_B))
+  n_B2 <- n_per_class - n_B1
+  
+  # class b (yellow)
+  data_B1_v1 <- runif(n_B1, min = -1, max = 2)
+  data_B1_v2 <- runif(n_B1, min = -2, max = 1)
+data_B1 <- data.frame(V1 = data_B1_v1, V2 = data_B1_v2, class = "B")
+  
+  data_B2_v1 <- runif(n_B2, min = 1, max = 2)
+  data_B2_v2 <- runif(n_B2, min = 1, max = 2)
+data_B2 <- data.frame(V1 = data_B2_v1, V2 = data_B2_v2, class = "B")
+  
+  data_class_B <- rbind(data_B1, data_B2)
+  # combine
+  data03 <- rbind(data_class_A, data_class_B)
+  data03$class <- factor(data03$class)
+  data03 <- data03[sample(1:nrow(data03)), ]
+  return(data03)
+}
+data01 <- generate_data01(n)
+data02 <- generate_data02(n)
+data03 <- generate_data03(n_per_class)
+           \end{lstlisting}     
+        
+
+    \subsection{Detailed Informations}
+        \subsubsection{Diabetes}\label{app:diabetes}
+        Diabetes mellitus (diabetes) is an umbrella term for various metabolic disorders. They all lead to elevated blood sugar levels because patients have a deficiency of the hormone insulin and/or insulin is less effective. In addition to genetic predisposition, obesity and lack of exercise are considered the most important causes of type 2 diabetes. However, a diet low in fibre and high in fat and sugar, as well as smoking, also contributes to its development.
+        \subsubsection{MSE}\label{app:MSE}
+        Mean Squared Error is used in various contexts. In general, MSE refers to the average squared difference between predicted and actual values. It is often used to evaluate the accuracy of regression models.
+        \begin{align*}
+        \widehat{\operatorname{MSE}}_{\text{train}}=\frac{1}{n}\sum_{i=1}^n\left(y_i - \hat{f}(x_i)\right)^2 \\
+        \widehat{\operatorname{MSE}}_{\text{test}}= \frac{1}{m}\sum_{i=1}^m\left(y_{0i} - \hat{f}(x_{0i})\right)^2
+        \end{align*}
+        \subsubsection{Gaussian Distribution}\label{app:gaussian}
+        The Gaussian Distribution is a probability distribution that is symmetric about the mean, showing that data near the mean are more frequent in occurrence than data far from the mean. If p>1 we assume multivariate Gaussian Distribution = $$\frac{1}{(2\pi)^{p/2}|\Sigma|^{1/2}}\exp\left(-\frac{1}{2}(x-\mu_k)^T\Sigma^{-1}(x-\mu_k)\right)$$
+        \subsubsection{Gini Index}\label{app:gini}
+        A Gini index of 0 represents a pure dataset, where all samples belong to the same class, while a Gini index of 1 indicates maximum impurity, where classes are evenly distributed
+        \subsubsection{Bootstrapping}\label{app:bootstrapping}
+        Instead of taking samples from the original dataset without replacement (meaning each sample is unique), bootstrapping allows for samples to be selected multiple times. Bootstrapping generates multiple datasets, each of the same size as the original, but some data points may appear more frequently in the bootstrapped datasets, while others may be missing entirely.
+        \subsubsection{Missing Values}\label{Missing values}
+        Datasets are often not 100\% complete. Due to just missing values, results of uncertainty, or other psychosocial factors of surveys, or physiologically implausible zero values, results in NAs (missing values) in dataframes. There are two ways of dealing with NAs: erasing and guessing. We can just erase all observations containing NAs in at least one predictor or use imputation. Erasing all observations with at least one NA results in significant data loss. Imputation is a better way of handling missing values.
+        \subsubsection{Harmful Outliers}\label{Harmful Outliers}
+        A harmful outlier is a very atypical observation with large leverage. Finding such points is the first step in handling outliers. There are two ways of dealing with harmful outliers: we can ignore them or erase them. An overall answer is not possible. LDA and QDA are typically more susceptible to outliers, whereas Random Forests are quite robust.
+        
+    \subsection{Mathematics}
+        \subsubsection{average Confusion Matrices}\label{app:avgconfusion}
+        \begin{table}[h!]
+        \centering
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{LDA on dataset 01}
+        \label{tab:confLDA01}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 117.33  & 6.56 \\ 
+            \textbf{Positiv}  & 7.67   & 118.44 \\ 
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{QDA on dataset 01}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 116.37  & 6.17 \\
+            \textbf{Positiv}  & 8.63   & 118.83 \\
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \end{table}
+
+        \begin{table}[h!]
+        \centering
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{RF on dataset 01}
+        \label{tab:confRF01}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 117.72  & 9.28 \\ 
+            \textbf{Positiv}  & 7.28   & 115.72 \\ 
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{LDA on dataset 02}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 103.25  & 11.2 \\
+            \textbf{Positiv}  & 21.75   & 113.8 \\
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \end{table}
+        \begin{table}[h!]
+        \centering
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{QDA on dataset 02}
+        \label{tab:confQDA02}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 108.82  & 11.74 \\ 
+            \textbf{Positiv}  & 16.18   & 113.26 \\ 
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{RF on dataset 02}
+        \label{tab:confRF02}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 108.05  & 15.54 \\
+            \textbf{Positiv}  & 17   & 109.46 \\
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \end{table}
+
+        \begin{table}[h!]
+        \centering
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{LDA on dataset 03}
+        \label{tab:confRF01}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 114.85  & 21.74 \\ 
+            \textbf{Positiv}  & 10.15   & 103.26 \\ 
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \begin{minipage}[t]{0.48\textwidth}
+        \caption{QDA on dataset 03}
+        \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 115.66  & 19.25 \\
+            \textbf{Positiv}  & 9.34   & 105.75 \\
+            \bottomrule
+        \end{tabular}
+        \end{minipage}
+        \end{table}
+        \begin{figure}[b!]
+            \begin{tabular}{r|cc}
+            \toprule
+            \textbf{Predicted} & \multicolumn{2}{c}\textbf{True Class} \\
+            \cmidrule(lr){2-3}
+            & \textbf{Negativ} & \textbf{Positiv} \\
+            \midrule
+            \textbf{Negativ}  & 125  & 0.848 \\ 
+            \textbf{Positiv}  & 0   & 124.152 \\ 
+            \bottomrule
+            \end{tabular}
+            \caption{RF on dataset 03}
+            \label{tab:confrf03}
+        \end{figure} 
+
+
+
+\clearpage
+
+\section*{Declaration of Independence}
+    Ich versichere hiermit, dass ich die vorstehende Seminararbeit selbstständig verfasst und keine anderen als die angegebenen Quellen und Hilfsmittel benutzt habe, dass die vorgelegte Arbeit noch an keiner anderen Hochschule zur Prüfung vorgelegt wurde und dass sie weder ganz noch in Teilen bereits veröffentlicht wurde. Wörtliche Zitate und Stellen, die anderen Werken dem Sinn nach entnommen sind, habe ich in jedem einzelnen Fall kenntlich gemacht.
+    \\
+    \\
+    \\
+    Theo Karl Wladislav Osterhaus, den 13.06.2025
+
+\end{document}
